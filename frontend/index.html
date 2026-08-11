@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ARC Asset Manager</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<canvas id="wave-canvas"></canvas>
+<div id="toast-stack" class="toast-stack"></div>
+
+<!-- =========================================================
+     AUTH SCREEN
+     ========================================================= -->
+<section id="auth-screen" class="auth-screen">
+  <form id="login-form" class="clay auth-card" novalidate>
+    <div class="auth-brand">
+      <h1>Asset Manager</h1>
+      <p>Sign in to manage assets &amp; barcodes</p>
+    </div>
+
+    <div id="login-error" class="auth-error hidden"></div>
+
+    <div class="field">
+      <label for="login-email">Email</label>
+      <input class="clay-inset" type="email" id="login-email" placeholder="you@company.com" required autocomplete="username" />
+    </div>
+    <div class="field">
+      <label for="login-password">Password</label>
+      <input class="clay-inset" type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+    </div>
+
+    <button type="submit" class="clay-btn primary" id="login-submit">Log In</button>
+  </form>
+</section>
+
+<!-- =========================================================
+     APP SHELL (dashboard)
+     ========================================================= -->
+<div id="app-shell" class="app-shell hidden">
+
+  <header class="topbar clay">
+    <div class="brand">
+      <span class="brand-text">ARC Asset Manager</span>
+    </div>
+    <div class="nav-actions">
+      <button id="add-asset-btn" class="clay-btn primary">+ Add Single Asset</button>
+      <button id="bulk-upload-btn" class="clay-btn">⇪ Bulk Upload (CSV)</button>
+    </div>
+    <div class="user-area">
+      <div class="user-chip clay-inset">
+        <div class="avatar" id="user-avatar">?</div>
+        <span id="user-email">—</span>
+      </div>
+      <button id="logout-btn" class="clay-btn ghost">Logout</button>
+    </div>
+  </header>
+
+  <main class="dashboard">
+
+    <!-- Table -->
+    <section class="panel clay">
+      <h2 class="panel-title">Assets</h2>
+
+      <div class="table-wrap">
+        <table class="asset-table">
+          <thead>
+            <tr>
+              <th>
+                <div class="th-inner">
+                  <span>Item No</span>
+                  <button type="button" class="col-filter-btn" data-col="0" title="Filter Item No">🔍</button>
+                </div>
+                <input type="text" class="col-filter-input hidden" data-col="0" placeholder="Filter item no…" />
+              </th>
+              <th>Barcode</th>
+              <th>Assigned Name</th>
+              <th>
+                <div class="th-inner">
+                  <span>Hardware</span>
+                  <button type="button" class="col-filter-btn" data-col="3" title="Filter Hardware">🔍</button>
+                </div>
+                <input type="text" class="col-filter-input hidden" data-col="3" placeholder="Filter hardware…" />
+              </th>
+              <th>
+                <div class="th-inner">
+                  <span>Country</span>
+                  <button type="button" class="col-filter-btn" data-col="4" title="Filter Country">🔍</button>
+                </div>
+                <input type="text" class="col-filter-input hidden" data-col="4" placeholder="Filter country…" />
+              </th>
+              <th>
+                <div class="th-inner">
+                  <span>City</span>
+                  <button type="button" class="col-filter-btn" data-col="5" title="Filter City">🔍</button>
+                </div>
+                <input type="text" class="col-filter-input hidden" data-col="5" placeholder="Filter city…" />
+              </th>
+              <th>
+                <div class="th-inner">
+                  <span>Asset Type</span>
+                  <button type="button" class="col-filter-btn" data-col="6" title="Filter Asset Type">🔍</button>
+                </div>
+                <input type="text" class="col-filter-input hidden" data-col="6" placeholder="Filter asset type…" />
+              </th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="asset-table-body">
+            <tr class="loading-row"><td colspan="8">Loading assets…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <button id="prev-page" class="clay-btn small">‹ Prev</button>
+        <span class="page-info" id="page-info">Page 1 of 1</span>
+        <button id="next-page" class="clay-btn small">Next ›</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- =========================================================
+     MODAL: Add / Edit Asset
+     ========================================================= -->
+<div id="asset-modal" class="modal-overlay hidden">
+  <form id="asset-form" class="clay modal-card">
+    <div class="modal-header">
+      <h2 id="asset-modal-title">Add Asset</h2>
+      <button type="button" class="clay-btn ghost icon-btn" data-close-modal="asset-modal">✕</button>
+    </div>
+
+    <div id="asset-form-error" class="auth-error hidden"></div>
+
+    <div class="form-grid">
+      <div class="field full">
+        <label for="af-assigned-name">Assigned Name</label>
+        <input class="clay-inset" type="text" id="af-assigned-name" required />
+      </div>
+      <div class="field">
+        <label for="af-serial-number">Serial Number</label>
+        <input class="clay-inset" type="text" id="af-serial-number" required />
+      </div>
+      <div class="field">
+        <label for="af-model">Model</label>
+        <input class="clay-inset" type="text" id="af-model" />
+      </div>
+      <div class="field">
+        <label for="af-make">Make</label>
+        <input class="clay-inset" type="text" id="af-make" />
+      </div>
+      <div class="field">
+        <label for="af-asset-type">Asset Type</label>
+        <input class="clay-inset" type="text" id="af-asset-type" placeholder="Laptop" />
+      </div>
+      <div class="field">
+        <label for="af-country">Country</label>
+        <input class="clay-inset" type="text" id="af-country" placeholder="India" />
+      </div>
+      <div class="field">
+        <label for="af-city">City</label>
+        <input class="clay-inset" type="text" id="af-city" placeholder="Kolkata" />
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="clay-btn ghost" data-close-modal="asset-modal">Cancel</button>
+      <button type="submit" class="clay-btn primary" id="asset-form-submit">Save Asset</button>
+    </div>
+  </form>
+</div>
+
+<!-- =========================================================
+     MODAL: Bulk CSV Upload
+     ========================================================= -->
+<div id="csv-modal" class="modal-overlay hidden">
+  <div class="clay modal-card">
+    <div class="modal-header">
+      <h2>Bulk Upload (CSV)</h2>
+      <button type="button" class="clay-btn ghost icon-btn" data-close-modal="csv-modal">✕</button>
+    </div>
+
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: -8px;">
+      Required columns: <code>assigned_name, serial_number, model, make, country, city, asset_type</code>
+    </p>
+
+    <div id="dropzone" class="dropzone">
+      <div class="dz-icon">⇪</div>
+      <div id="dz-label">Drag &amp; drop your CSV file here, or click to browse</div>
+      <input type="file" id="csv-file-input" accept=".csv" />
+    </div>
+
+    <div id="csv-file-chip" class="file-chip clay-inset hidden"></div>
+    <div id="csv-upload-result" class="upload-result hidden"></div>
+
+    <div class="modal-footer">
+      <a id="download-sample-csv" class="clay-btn ghost small" download="asset_upload_sample.csv">Download Sample</a>
+      <button type="button" class="clay-btn ghost" data-close-modal="csv-modal">Close</button>
+      <button type="button" id="csv-upload-submit" class="clay-btn primary" disabled>Upload</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     MODAL: Sticker Preview
+     ========================================================= -->
+<div id="sticker-modal" class="modal-overlay hidden">
+  <div class="clay modal-card">
+    <div class="modal-header">
+      <h2>Barcode Sticker</h2>
+      <button type="button" class="clay-btn ghost icon-btn" data-close-modal="sticker-modal">✕</button>
+    </div>
+
+    <div class="sticker-preview">
+      <div id="sticker-spinner" class="spinner"></div>
+      <img id="sticker-image" class="hidden" alt="Barcode sticker preview" />
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="clay-btn ghost" data-close-modal="sticker-modal">Close</button>
+      <button type="button" id="sticker-print-btn" class="clay-btn primary">🖨 Print</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/wave.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
