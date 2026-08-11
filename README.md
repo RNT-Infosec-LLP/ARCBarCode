@@ -1,4 +1,4 @@
-# ARC Asset Management & Barcode Generation
+# Asset Management & Barcode Generation
 
 A minimal FastAPI application for tracking assets and generating printable
 Code128 barcode stickers.
@@ -56,5 +56,5 @@ routers/
 
 ## Notes
 
-- Barcode string format: `{ORG_CODE}-{COUNTRY_CODE}-{CITY_CODE}-{TYPE_CODE}-{index}`, e.g. `ARC-IND-KOL-L-001`.
+- Barcode string format: `{ORG_CODE}-{COUNTRY_CODE}-{CITY_CODE}-{TYPE_CODE}-{index}`, e.g. `ORG-IND-KOL-L-001`.
 - Tables are created automatically via `Base.metadata.create_all` on startup; for schema changes in production, introduce a migration tool like Alembic.

@@ -96,6 +96,7 @@
     userEmailEl.textContent = email || "User";
     userAvatarEl.textContent = (email || "?").charAt(0).toUpperCase();
     loadAssets();
+    startInactivityTimer();
   }
 
   function showAuth() {
@@ -139,13 +140,50 @@
   logoutBtn.addEventListener("click", () => {
     API.logout();
     sessionStorage.removeItem("arc_user_email");
+    stopInactivityTimer();
     showAuth();
   });
 
   window.addEventListener("auth:expired", () => {
     toast("Session expired. Please log in again.", "error");
+    stopInactivityTimer();
     showAuth();
   });
+
+  // ---------------------------------------------------------------------
+  // Session timeout: auto-logout after 5 minutes of user inactivity.
+  // JWTs are stateless (no server-side session to expire on an idle timer),
+  // so inactivity is tracked client-side and enforced by clearing the token
+  // and returning to the login screen.
+  // ---------------------------------------------------------------------
+  const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"];
+  let inactivityTimer = null;
+
+  function resetInactivityTimer() {
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(handleInactivityTimeout, INACTIVITY_TIMEOUT_MS);
+  }
+
+  function handleInactivityTimeout() {
+    if (!API.isAuthenticated()) return;
+    API.logout();
+    sessionStorage.removeItem("arc_user_email");
+    stopInactivityTimer();
+    showAuth();
+    toast("You were logged out after 5 minutes of inactivity.", "error");
+  }
+
+  function startInactivityTimer() {
+    ACTIVITY_EVENTS.forEach((evt) => document.addEventListener(evt, resetInactivityTimer));
+    resetInactivityTimer();
+  }
+
+  function stopInactivityTimer() {
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    inactivityTimer = null;
+    ACTIVITY_EVENTS.forEach((evt) => document.removeEventListener(evt, resetInactivityTimer));
+  }
 
   // ---------------------------------------------------------------------
   // Dashboard: load & render assets
@@ -177,7 +215,7 @@
       <tr data-id="${item.id}">
         <td>#${item.id}</td>
         <td><span class="badge">${escapeHtml(item.barcode_string)}</span></td>
-        <td>${escapeHtml(item.assigned_name)}</td>
+        <td>${item.assigned_name ? escapeHtml(item.assigned_name) : "—"}</td>
         <td>${renderHardwareCell(item)}</td>
         <td>${escapeHtml(item.country || "—")}</td>
         <td>${escapeHtml(item.city || "—")}</td>
@@ -295,7 +333,7 @@
     assetFormError.classList.add("hidden");
 
     const payload = {
-      assigned_name: document.getElementById("af-assigned-name").value.trim(),
+      assigned_name: document.getElementById("af-assigned-name").value.trim() || null,
       serial_number: document.getElementById("af-serial-number").value.trim(),
       model: document.getElementById("af-model").value.trim() || null,
       make: document.getElementById("af-make").value.trim() || null,

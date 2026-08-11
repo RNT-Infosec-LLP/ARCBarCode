@@ -13,6 +13,10 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    # Account lockout policy bookkeeping (see auth.py for thresholds).
+    failed_login_attempts = Column(Integer, nullable=False, server_default="0")
+    # Naive UTC datetime (SQLite drops tzinfo on round-trip; see auth.py).
+    locked_until = Column(DateTime, nullable=True)
 
 
 class Asset(Base):
@@ -20,7 +24,7 @@ class Asset(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     barcode_string = Column(String, unique=True, index=True, nullable=False)
-    assigned_name = Column(String, nullable=False)
+    assigned_name = Column(String, nullable=True)
     serial_number = Column(String, unique=True, index=True, nullable=False)
     model = Column(String, nullable=True)
     make = Column(String, nullable=True)

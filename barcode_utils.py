@@ -11,9 +11,19 @@ from PIL import Image, ImageDraw, ImageFont
 # ---------------------------------------------------------------------------
 ORG_NAME = os.environ.get("ORG_NAME", "ARC")
 LOGO_PATH = os.environ.get("LOGO_PATH", "logo.png")  # optional, falls back to text header
-STICKER_WIDTH = 500
-HEADER_HEIGHT = 80
-PADDING = 10
+
+# Physical sticker size: 2in (width) x 1in (height), logo/header in the top
+# half, barcode in the bottom half. DPI controls the pixel resolution used
+# when rendering/printing (embedded in the PNG so printers size it correctly).
+STICKER_WIDTH_IN = 2.0
+STICKER_HEIGHT_IN = 1.0
+STICKER_DPI = int(os.environ.get("STICKER_DPI", "300"))
+
+CANVAS_WIDTH = round(STICKER_WIDTH_IN * STICKER_DPI)
+CANVAS_HEIGHT = round(STICKER_HEIGHT_IN * STICKER_DPI)
+HEADER_HEIGHT = CANVAS_HEIGHT // 2  # top half
+BARCODE_AREA_HEIGHT = CANVAS_HEIGHT - HEADER_HEIGHT  # bottom half
+MARGIN = max(2, STICKER_DPI // 75)  # small breathing room around each half
 
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont:
@@ -35,27 +45,28 @@ def _load_logo_on_white(path: str) -> Image.Image:
     return logo.convert("RGB")
 
 
-def _build_header(width: int) -> Image.Image:
-    """Return a header image: organization logo if present, else org name text."""
-    header = Image.new("RGB", (width, HEADER_HEIGHT), "white")
+def _build_header(width: int, height: int) -> Image.Image:
+    """Return a header image (top half): organization logo if present, else org name text."""
+    header = Image.new("RGB", (width, height), "white")
+    max_w, max_h = width - MARGIN * 2, height - MARGIN * 2
 
     if os.path.exists(LOGO_PATH):
         logo = _load_logo_on_white(LOGO_PATH)
         # Scale logo to fit within the header while preserving aspect ratio.
-        ratio = min(width / logo.width, HEADER_HEIGHT / logo.height)
+        ratio = min(max_w / logo.width, max_h / logo.height)
         new_size = (max(1, int(logo.width * ratio)), max(1, int(logo.height * ratio)))
         logo = logo.resize(new_size)
         x = (width - logo.width) // 2
-        y = (HEADER_HEIGHT - logo.height) // 2
+        y = (height - logo.height) // 2
         header.paste(logo, (x, y))
     else:
         draw = ImageDraw.Draw(header)
-        font = _load_font(32)
+        font = _load_font(max(10, height // 3))
         text = ORG_NAME
         bbox = draw.textbbox((0, 0), text, font=font)
         text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
         draw.text(
-            ((width - text_w) / 2, (HEADER_HEIGHT - text_h) / 2),
+            ((width - text_w) / 2, (height - text_h) / 2),
             text,
             fill="black",
             font=font,
@@ -78,23 +89,27 @@ def generate_barcode_image(barcode_string: str) -> Image.Image:
 
 
 def generate_sticker(barcode_string: str) -> io.BytesIO:
-    """Build a printable sticker: org header on top, barcode underneath."""
+    """Build a printable 2in x 1in sticker: org header in the top half,
+    barcode centered in the bottom half."""
+    canvas = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), "white")
+
+    header_img = _build_header(CANVAS_WIDTH, HEADER_HEIGHT)
+    canvas.paste(header_img, (0, 0))
+
     barcode_img = generate_barcode_image(barcode_string)
+    # Fit the barcode within the bottom half, preserving aspect ratio (no
+    # stretching/distortion), then center it in that half.
+    max_w = CANVAS_WIDTH - MARGIN * 2
+    max_h = BARCODE_AREA_HEIGHT - MARGIN * 2
+    ratio = min(max_w / barcode_img.width, max_h / barcode_img.height)
+    new_size = (max(1, int(barcode_img.width * ratio)), max(1, int(barcode_img.height * ratio)))
+    barcode_img = barcode_img.resize(new_size)
 
-    # Fit barcode width to the sticker width, preserving aspect ratio.
-    ratio = STICKER_WIDTH / barcode_img.width
-    barcode_img = barcode_img.resize(
-        (STICKER_WIDTH, int(barcode_img.height * ratio))
-    )
-
-    header_img = _build_header(STICKER_WIDTH)
-
-    canvas_height = HEADER_HEIGHT + barcode_img.height + PADDING * 3
-    canvas = Image.new("RGB", (STICKER_WIDTH, canvas_height), "white")
-    canvas.paste(header_img, (0, PADDING))
-    canvas.paste(barcode_img, (0, HEADER_HEIGHT + PADDING * 2))
+    x = (CANVAS_WIDTH - barcode_img.width) // 2
+    y = HEADER_HEIGHT + (BARCODE_AREA_HEIGHT - barcode_img.height) // 2
+    canvas.paste(barcode_img, (x, y))
 
     output = io.BytesIO()
-    canvas.save(output, format="PNG")
+    canvas.save(output, format="PNG", dpi=(STICKER_DPI, STICKER_DPI))
     output.seek(0)
     return output

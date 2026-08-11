@@ -2,10 +2,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import Base, engine
+from database import Base, engine, run_lightweight_migrations
 from routers import assets, auth, users
 
-# Create tables on startup (fine for SQLite/simple setups; use Alembic for prod migrations).
+# Apply small additive schema tweaks to an existing DB file without dropping
+# it (see database.py), then create any missing tables (fine for
+# SQLite/simple setups; use Alembic for real production migrations).
+run_lightweight_migrations()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="ARC Asset Management & Barcode Generation")

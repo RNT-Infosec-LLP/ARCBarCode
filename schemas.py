@@ -34,7 +34,7 @@ class LoginRequest(BaseModel):
 # Asset schemas
 # ---------------------------------------------------------------------------
 class AssetBase(BaseModel):
-    assigned_name: str
+    assigned_name: Optional[str] = None
     serial_number: str
     model: Optional[str] = None
     make: Optional[str] = None
